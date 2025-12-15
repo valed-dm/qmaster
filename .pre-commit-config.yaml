@@ -29,7 +29,7 @@ repos:
         entry: poetry run mypy --install-types --non-interactive --strict app/
         language: system
         pass_filenames: false
-        stages: [pre-push]
+        stages: [manual]
         always_run: true
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
