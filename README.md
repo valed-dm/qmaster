@@ -1,4 +1,4 @@
-# ftask - FastAPI Task Manager
+# qmaster - FastAPI Order Management Service
 
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-asyncio-brightgreen)

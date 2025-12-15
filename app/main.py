@@ -81,7 +81,7 @@ def create_app() -> FastAPI:
     log.info("Starting {} app", settings.APP_NAME)
     application = FastAPI(
         title=settings.APP_NAME,
-        summary="Microservice to manage task",
+        summary="Q-master microservice to manage orders",
         docs_url="/docs",
         openapi_url="/openapi.json",
         lifespan=lifespan,
