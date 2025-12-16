@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import sqlalchemy as sa
 from sqlalchemy import Boolean
 from sqlalchemy import Integer
 from sqlalchemy import String
@@ -16,7 +17,7 @@ from app.db.timestamp import TimestampMixin
 
 
 if TYPE_CHECKING:
-    from app.task.models import Task
+    from app.orders.models import Order
 
 
 class User(Base, TimestampMixin):
@@ -31,28 +32,30 @@ class User(Base, TimestampMixin):
         full_name (str | None): User's full name.
         disabled (bool): Flag to indicate if the user account is active.
         scopes (str): Space-separated string of authorization scopes.
-        tasks (list["Task"]): A list of tasks associated with the user.
+        orders (list["Order"]): A list of orders associated with the user.
     """
 
     __tablename__ = "users"
+    __table_args__ = (
+        sa.Index("ix_users_username", "username", unique=True),
+        sa.Index("ix_users_email", "email", unique=True),
+    )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    username: Mapped[str] = mapped_column(
-        String(50), unique=True, nullable=False, index=True
-    )
-    # Increased email length to standard recommendation
-    email: Mapped[str | None] = mapped_column(
-        String(255), unique=True, nullable=True, index=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    username: Mapped[str] = mapped_column(String(50), nullable=False)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
-    full_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    disabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    scopes: Mapped[str] = mapped_column(String(255), default="", nullable=False)
+    full_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    disabled: Mapped[bool] = mapped_column(
+        Boolean, server_default=sa.text("false"), nullable=False
+    )
+    scopes: Mapped[str] = mapped_column(
+        String(255), server_default=sa.text("''"), nullable=False
+    )
 
-    # Relationship: one user → many tasks
-    tasks: Mapped[list["Task"]] = relationship(
-        "Task",
-        back_populates="owner",
+    orders: Mapped[list["Order"]] = relationship(
+        "Order",
+        back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
