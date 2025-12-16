@@ -302,19 +302,3 @@ class DatabaseManager:
 
 # Singleton instance
 db_manager = DatabaseManager()
-
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """
-    FastAPI dependency that provides a database session and handles the
-    transaction lifecycle (commit/rollback) for each request.
-    """
-    async with db_manager.get_session() as session:
-        try:
-            yield session
-            await session.commit()
-
-        except Exception:
-            await session.rollback()
-
-            raise
