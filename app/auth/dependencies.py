@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.schemas import TokenData
 from app.auth.schemas import oauth2_scheme
 from app.core.config import settings
-from app.db.db_manager import get_db
+from app.core.dependencies import get_db
 from app.user import repository
 from app.user.models import User
 
