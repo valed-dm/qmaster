@@ -7,7 +7,7 @@ from sqlalchemy import MetaData
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from app.task.models import Task
+from app.orders.models import Order
 from app.user.models import User
 
 
@@ -31,7 +31,7 @@ if config.config_file_name is not None:
 target_metadata = MetaData()
 
 User.metadata.tables["users"].to_metadata(target_metadata)
-Task.metadata.tables["tasks"].to_metadata(target_metadata)
+Order.metadata.tables["orders"].to_metadata(target_metadata)
 
 
 def run_migrations_offline() -> None:
@@ -53,8 +53,7 @@ async def run_migrations_online() -> None:
     section = config.get_section(config.config_ini_section)
     if section is None:
         raise ValueError(
-            f"Alembic section '{config.config_ini_section}'"
-            f" not found in config file."
+            f"Alembic section '{config.config_ini_section}' not found in config file."
         )
     connectable = async_engine_from_config(
         section,
