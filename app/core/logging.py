@@ -9,8 +9,7 @@ from loguru import logger
 from .config import settings
 
 
-# Bound logger with a custom name available in record["extra"]
-log = logger.bind(name="FTASK")
+log = logger.bind(name="QMASTER")
 
 log.add(
     settings.LOG_FILE,
