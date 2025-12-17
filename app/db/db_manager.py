@@ -300,5 +300,4 @@ class DatabaseManager:
             log.info("Database engine not initialized, skipping shutdown.")
 
 
-# Singleton instance
 db_manager = DatabaseManager()
