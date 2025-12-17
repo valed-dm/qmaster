@@ -10,9 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import get_current_active_user
 from app.auth.schemas import Token
 from app.auth.service import login_and_create_token
-from app.db.db_manager import get_db
+from app.core.dependencies import get_db
 from app.user.models import User as DBUser
-from app.user.schemas import User
 from app.user.schemas import UserBaseUpdate
 from app.user.schemas import UserCreate
 from app.user.schemas import UserFullUpdate
@@ -27,7 +26,7 @@ admin_router = APIRouter(prefix="/admin", tags=["admin"])
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@admin_router.get("/users/", response_model=list[UserFullUpdate])
+@admin_router.get("/users/", response_model=list[UserOut])
 async def list_users(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: Annotated[DBUser, Security(get_current_active_user, scopes=["admin"])],
@@ -38,7 +37,7 @@ async def list_users(
     return await list_all_users(db, limit=limit, offset=offset)
 
 
-@admin_router.patch("/users/{user_id}", response_model=UserFullUpdate)
+@admin_router.patch("/users/{user_id}", response_model=UserOut)
 async def update_user(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: Annotated[DBUser, Security(get_current_active_user, scopes=["admin"])],
@@ -60,18 +59,18 @@ async def read_system_status(
     return {"status": "ok", "user": current_user.username, "is_admin": True}
 
 
-@router.get("/me", response_model=User)
+@router.get("/me", response_model=UserOut)
 async def read_users_me(
     current_user: Annotated[
         DBUser,
-        Security(get_current_active_user, scopes=["user"]),
+        Security(get_current_active_user, scopes=["admin", "staff", "user"]),
     ],
-) -> User:
+) -> UserOut:
     """Retrieve the profile of the current authenticated user."""
-    return User.model_validate(current_user)
+    return UserOut.model_validate(current_user)
 
 
-@router.put("/me/update", response_model=User, status_code=200)
+@router.put("/me/update", response_model=UserOut, status_code=200)
 async def update_own_user(
     user_update: UserBaseUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
