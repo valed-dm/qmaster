@@ -64,9 +64,8 @@ class Order(Base, TimestampMixin):
     items: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False)
     total_price: Mapped[float] = mapped_column(Float, nullable=False)
     status: Mapped[OrderStatus] = mapped_column(
-        Enum(OrderStatus, name="order_status", create_type=False),
+        Enum(OrderStatus, name="order_status", native_enum=True),
         default=OrderStatus.PENDING,
-        server_default="'PENDING'",
         nullable=False,
     )
 
