@@ -1,4 +1,3 @@
-# app/core/config.py
 from enum import Enum
 from pathlib import Path
 from typing import Annotated
@@ -23,7 +22,7 @@ class Settings(DatabaseSettings):
 
     Inherits database settings from DatabaseSettings and adds
     application-specific configuration, authentication parameters,
-    and monitoring options.
+    monitoring options, and infrastructure (Redis/RabbitMQ) settings.
     """
 
     model_config = SettingsConfigDict(
@@ -132,6 +131,76 @@ class Settings(DatabaseSettings):
             description="JWT token type prefix.",
         ),
     ]
+
+    # --- Infrastructure Settings (Redis & RabbitMQ) ---
+    REDIS_HOST: Annotated[
+        str,
+        Field(
+            default="redis",
+            validation_alias="REDIS_HOST",
+            description="Redis host address.",
+        ),
+    ]
+
+    REDIS_PORT: Annotated[
+        int,
+        Field(
+            default=6379,
+            validation_alias="REDIS_PORT",
+            description="Redis port.",
+        ),
+    ]
+
+    RABBITMQ_HOST: Annotated[
+        str,
+        Field(
+            default="rabbitmq",
+            validation_alias="RABBITMQ_HOST",
+            description="RabbitMQ host address.",
+        ),
+    ]
+
+    RABBITMQ_PORT: Annotated[
+        int,
+        Field(
+            default=5672,
+            validation_alias="RABBITMQ_PORT",
+            description="RabbitMQ port.",
+        ),
+    ]
+
+    RABBITMQ_USER: Annotated[
+        str,
+        Field(
+            default="guest",
+            validation_alias="RABBITMQ_USER",
+            description="RabbitMQ username.",
+        ),
+    ]
+
+    RABBITMQ_PASSWORD: Annotated[
+        str,
+        Field(
+            default="guest",
+            validation_alias="RABBITMQ_PASSWORD",
+            description="RabbitMQ password.",
+        ),
+    ]
+
+    @property
+    def REDIS_URL(self) -> str:
+        """Construct Redis Connection URL."""
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/0"
+
+    @property
+    def CELERY_BROKER_URL(self) -> str:
+        """Construct RabbitMQ Broker URL."""
+        return f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}//"
+
+    @property
+    def CELERY_RESULT_BACKEND(self) -> str:
+        """Use Redis as the result backend for Celery."""
+        return self.REDIS_URL
 
     # --- Path Settings ---
     BASE_DIR: Path = Path(__file__).resolve().parent.parent
