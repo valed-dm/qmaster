@@ -16,7 +16,7 @@ from prometheus_client import make_asgi_app
 from app.core.config import settings
 from app.core.logging import log
 from app.lifecycle.app_lifecycle import AppLifecycle
-from app.task.router import router as tasks_router
+from app.orders.router import router as orders_router
 from app.user.router import admin_router
 from app.user.router import router as users_router
 
@@ -49,7 +49,7 @@ def setup_routers(app: FastAPI) -> None:
     """
     app.include_router(admin_router)
     app.include_router(users_router)
-    app.include_router(tasks_router)
+    app.include_router(orders_router)
 
 
 @asynccontextmanager
