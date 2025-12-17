@@ -3,12 +3,43 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: qmaster_app
     env_file:
       - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
     ports:
       - "${APP_PORT:-8000}:8000"
     depends_on:
       - db
+      - redis
+      - rabbitmq
+    networks:
+      - app-network
+    volumes:
+      - .:/app
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qmaster_worker
+    command: celery -A app.core.celery_app worker --loglevel=info
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+      - rabbitmq
     networks:
       - app-network
     volumes:
@@ -16,6 +47,7 @@ services:
 
   db:
     image: postgres:15
+    container_name: qmaster_db
     env_file:
       - .env
     environment:
@@ -26,6 +58,28 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: qmaster_redis
+    networks:
+      - app-network
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: qmaster_rabbitmq
+    env_file:
+      - .env
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
     networks:
       - app-network
 
