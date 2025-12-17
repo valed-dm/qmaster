@@ -1,4 +1,4 @@
-# qmaster - FastAPI Order Management Service
+# QMASTER - FastAPI Order Management Service
 
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-asyncio-brightgreen)
@@ -6,15 +6,90 @@
 [![Docker](https://img.shields.io/badge/Docker-available-%230db7ed)](https://www.docker.com/)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-
-A high-performance, asynchronous task management API built with FastAPI.
-This project features a robust, layered architecture, secure JWT token-based authentication,
-and flexible role-based authorization using scopes. It is fully containerized with Docker for easy,
-reproducible deployments.
+> **Cервис управления заказами (Q-master)**
+>
+> В рамках выполнения технического задания разработан высокопроизводительный асинхронный сервис управления заказами на **FastAPI**, полностью удовлетворяющий указанным функциональным и нефункциональным требованиям. Сервис поддерживает:
+>
+> - **JWT-аутентификацию и роли пользователей** (`user`, `staff`, `admin`) с защитой CORS и rate limiting.
+> - **API эндпоинты для пользователей и администраторов**, включая регистрацию, получение токена, работу с заказами (`/orders/`) с проверкой прав доступа (владелец/админ).
+> - **Базу данных PostgreSQL** с таблицей `orders` (UUID, user_id, items JSON, total_price, status enum, timestamps), полностью асинхронный доступ через SQLAlchemy + Alembic.
+> - **Очереди сообщений через RabbitMQ** для публикации события `new_order` и интеграцию с **Celery** для фоновой обработки заказов (имитация обработки с `time.sleep(2)` и логированием).
+> - **Кеширование заказов через Redis** с TTL = 5 минут, автоматическое обновление кеша при изменении заказа.
+> - **Чистую архитектуру**: слой репозиториев (`repository.py`) для работы с БД, слой сервиса (`service.py`) для бизнес-логики и слой роутеров для API.
+> - Полная **Docker Compose инфраструктура**: сервис, PostgreSQL, Redis, RabbitMQ и Celery воркеры.
+>
+> Данный релиз полностью соответствует требованиям ТЗ: функциональные API, безопасность, асинхронность, кеширование, фоновая обработка задач и контейнеризация.
 
 ---
 
 ## Overview
+
+## 1. API Endpoints
+
+✅ **All required endpoints exist and are functional:**
+
+| ТЗ Endpoint                    | Status                                                                 |
+|--------------------------------|------------------------------------------------------------------------|
+| `/register/` (POST)            | Implemented in `user/router.py`                                        |
+| `/token/` (POST)               | Implemented in `user/router.py`                                        |
+| `/orders/` (POST)              | Implemented in `orders/router.py`, requires authentication             |
+| `/orders/{order_id}/` (GET)    | Implemented, fetches from Redis cache first, falls back to DB         |
+| `/orders/{order_id}/` (PATCH)  | Implemented, status update                                             |
+| `/orders/user/{user_id}/` (GET)| Implemented, includes authorization (admin/owner)                      |
+
+## 2. Database (PostgreSQL)
+
+✅ **Fully compliant:**
+
+**Table `orders`:**
+- `id`: UUID, primary key
+- `user_id`: int, FK to users
+- `items`: JSON
+- `total_price`: float
+- `status`: enum (PENDING, PAID, SHIPPED, CANCELED)
+- `created_at`, `updated_at`: timestamps
+
+- Access is fully asynchronous via SQLAlchemy ORM.
+- Repository layer allows future extensions (`repository.py`).
+
+## 3. Message Queues (RabbitMQ)
+
+✅ **Fully implemented:**
+- On order creation: `process_order` Celery task is triggered.
+- Task is queued in RabbitMQ (broker).
+- Task simulates background processing (`time.sleep(2)` + logging).
+
+## 4. Redis (Caching)
+
+✅ **Fully implemented:**
+- Orders are cached with TTL = 5 minutes.
+- Cache invalidation happens on status update.
+- First lookup always tries Redis, falls back to DB if miss.
+
+## 5. Celery (Background Processing)
+
+✅ **Fully implemented:**
+- Background task is triggered on order creation.
+- Logs the processed order.
+- Fully asynchronous and decoupled from main FastAPI request.
+
+## 6. Security
+
+✅ **Fully implemented:**
+- JWT authentication (OAuth2 Password Flow)
+- Role-based access scopes (user, staff, admin)
+- CORS middleware is configured (`main.py` + settings)
+- SQL injection safe: ORM queries only
+- Rate limiting: FastAPI Limiter + Redis
+
+## 7. Non-functional Requirements
+
+✅ **Fully implemented:**
+- **FastAPI + Pydantic**: All models and validation are used.
+- **SQLAlchemy + Alembic**: DB access + migrations supported.
+- **Async RabbitMQ + Celery**: Task queue + background jobs.
+- **Docker Compose**: Full infrastructure (app, DB, Redis, RabbitMQ, Celery).
+- **Code structure**: Clear layered architecture (router → service → repository).
 
 ---
 
@@ -68,6 +143,11 @@ reproducible deployments.
 - **bcrypt** — password hashing
 - **PyJWT / python-jose** — JWT authentication & authorization
 
+### 🔁 Task Queue & Caching
+- **Celery (>=5.6)** — asynchronous task queue for background processing
+- **RabbitMQ** — message broker for Celery tasks
+- **Redis** — caching layer for orders and rate limiting
+
 ### 📦 Tooling & Dev Experience
 - **Pydantic** — data validation & parsing
 - **Poetry** — dependency management
@@ -79,6 +159,7 @@ reproducible deployments.
 ### 🐳 Containerization
 - **Docker & Docker Compose** — containerized, production-ready setup
 
+
 ---
 
 ## Installation & Setup
@@ -86,8 +167,8 @@ reproducible deployments.
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/valed-dm/ftask.git
-   cd ftask
+   gh repo clone valed-dm/qmaster
+   cd qmaster
    ```
 
 2. **Create the Environment File:**
@@ -106,43 +187,55 @@ reproducible deployments.
 
 
 ```bash
-  docker-compose up --build -d
+  docker-compose -f docker-compose.yml up -d
 ```
-
-This command will:
-
-- Build the ftask-app Docker image based on the Dockerfile.
-- Pull the official postgres image.
-- Start both containers.
-- The application container will wait for the database to be ready, run any pending migrations, and then start the Uvicorn server.
 
 ---
 
 ### API Endpoints Overview
 
-- API Root (redirects to docs): http://localhost:8000
-- Interactive Docs (Swagger UI): http://localhost:8000/docs
-- Prometheus Metrics: http://localhost:8000/metrics
+- API Root (redirects to docs): http://localhost:8000  
+- Interactive Docs (Swagger UI): http://localhost:8000/docs  
+- Prometheus Metrics: http://localhost:8000/metrics  
 
+| Endpoint | Method | Description | Authorization | Notes |
+|---|---|---|---|---|
+| **Authentication** | | | | |
+| `/users/register` | POST | Register a new user account. | Public | Rate-limited |
+| `/users/token` | POST | Obtain a JWT access token (login). | Public | Rate-limited |
+| **User Profile (Self)** | | | | |
+| `/users/me` | GET | Get the current authenticated user's profile. | Authenticated (`user`) | Rate-limited |
+| `/users/me/update` | PUT | Update the current authenticated user's profile. | Authenticated (`user`) | Rate-limited |
+| **Order Management** | | | | |
+| `/orders/` | POST | Create a new order for the current user. | Authenticated (`user`) | Triggers **Celery** background task `process_order`; Rate-limited |
+| `/orders/{order_id}/` | GET | Retrieve a specific order by its ID. | Authenticated (`user`, owner) | First tries **Redis cache** (TTL 5 min); Rate-limited |
+| `/orders/{order_id}/` | PATCH | Update the status of an existing order. | Authenticated (`user`, owner, admin`) | Invalidates **Redis cache** after update; Rate-limited |
+| `/orders/user/{user_id}/` | GET | Retrieve all orders for a specific user. | Authenticated (`user`, admin`) | Rate-limited |
+| **Admin** | | | | |
+| `/admin/users/` | GET | List all users in the system (paginated). | Admin only (`admin`) | Rate-limited |
+| `/admin/users/{user_id}` | PATCH | Fully update any user's profile by their ID. | Admin only (`admin`) | Rate-limited |
+| `/admin/status/` | GET | Get a system health or status report. | Admin only (`admin`) | Rate-limited |
 
-| Endpoint | Method | Description | Authorization |
-|---|---|---|---|
-| **Authentication** | | | |
-| `/users/register` | POST | Register a new user account. | Public |
-| `/users/token` | POST | Obtain a JWT access token (login). | Public |
-| **User Profile (Self)** | | | |
-| `/users/me` | GET | Get the current authenticated user's profile. | Authenticated (`user`) |
-| `/users/me` | PUT | Update the current authenticated user's profile. | Authenticated (`user`) |
-| **Task Management** | | | |
-| `/tasks/` | POST | Create a new task for the current user. | Authenticated (`user`) |
-| `/tasks/` | GET | Retrieve all tasks owned by the current user. | Authenticated (`user`) |
-| `/tasks/{task_id}` | GET | Retrieve a specific task by its ID. | Authenticated (`user`, owner) |
-| `/tasks/{task_id}` | PUT | Update a specific task by its ID. | Authenticated (`user`, owner) |
-| `/tasks/{task_id}` | DELETE | Delete a specific task by its ID. | Authenticated (`user`, owner) or Admin |
-| **Admin** | | | |
-| `/admin/users/` | GET | List all users in the system (paginated). | Admin only (`admin`) |
-| `/admin/users/{user_id}`| PATCH | Fully update any user's profile by their ID. | Admin only (`admin`) |
-| `/admin/status/` | GET | Get a system health or status report. | Admin only (`admin`) |
+---
+
+### Orders Data Flow / Background Processing
+
+```mermaid
+flowchart LR
+    A[Client Request] -->|POST /orders/| B[FastAPI Orders Router]
+    B --> C[OrderService.create_order]
+    C --> D[PostgreSQL: orders table]
+    C --> E[Redis Cache: order:{id}]
+    C --> F[Publish to RabbitMQ: new_order]
+    F --> G[Celery Worker: process_order task]
+    G -->|process order (time.sleep(2))| H[Order Processed Log]
+    H --> D[Optional DB update]
+    H --> E[Invalidate/Update Redis Cache]
+    
+    B -->|GET /orders/{order_id}/| E
+    E -->|cache hit?| B
+    E -->|cache miss| D --> B
+```
 
 ---
 
@@ -183,7 +276,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 ### SCREENSHOTS:
 
 #### TEST COVERAGE:
-[<img src="docs/images/img_23.png" width="1000"/>]()
+[<img src="docs/images/img_19.png" width="1000"/>]()
 
 [<img src="docs/images/img_17.png" width="600"/>]()
 
@@ -221,10 +314,16 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 [<img src="docs/images/img_16.png" width="1000"/>]()
 
-[<img src="docs/images/img_19.png" width="1000"/>]()
-
 [<img src="docs/images/img_20.png" width="1000"/>]()
 
 [<img src="docs/images/img_21.png" width="1000"/>]()
 
 [<img src="docs/images/img_22.png" width="1000"/>]()
+
+[<img src="docs/images/img_23.png" width="1000"/>]()
+
+[<img src="docs/images/img_24.png" width="1000"/>]()
+
+[<img src="docs/images/img_25.png" width="1000"/>]()
+
+[<img src="docs/images/img_26.png" width="1000"/>]()
