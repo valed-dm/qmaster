@@ -220,12 +220,14 @@
 
 ### Orders Data Flow / Background Processing
 
+### Orders Data Flow / Background Processing
+
 ```mermaid
 flowchart LR
     A[Client Request] -->|POST /orders/| B[FastAPI Orders Router]
     B --> C[OrderService.create_order]
     C --> D[PostgreSQL: orders table]
-    C --> E[Redis Cache: order:{id}]
+    C --> E[Redis Cache: order_id]
     C --> F[Publish to RabbitMQ: new_order]
     F --> G[Celery Worker: process_order task]
     G -->|process order (time.sleep(2))| H[Order Processed Log]
