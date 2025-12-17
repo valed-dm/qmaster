@@ -230,7 +230,7 @@ flowchart LR
     C --> E[Redis Cache: order_id]
     C --> F[Publish to RabbitMQ: new_order]
     F --> G[Celery Worker: process_order task]
-    G -->|process order (time.sleep(2))| H[Order Processed Log]
+    G -->|"process order (time.sleep(2))"| H[Order Processed Log]
     H --> D[Optional DB update]
     H --> E[Invalidate/Update Redis Cache]
     
