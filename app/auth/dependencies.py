@@ -108,7 +108,6 @@ async def get_current_user(
         token_scopes = set(token_data.scopes.split())
         required_scopes = set(security_scopes.scopes)
 
-        # Use the selected authorization utility function.
         if not _check_scopes(
             user_scopes=token_scopes,
             required_scopes=required_scopes,
@@ -135,3 +134,26 @@ def get_current_active_user(
         raise HTTPException(status_code=400, detail="Inactive user")
 
     return current_user
+
+
+def validate_user_access(
+    user_id: int,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+) -> int:
+    """
+    Dependency that ensures the Requesting User is either:
+    1. An Admin
+    2. The owner of the account (user_id matches current_user.id)
+
+    Returns the validated user_id.
+    """
+    if "admin" in current_user.scopes:
+        return user_id
+
+    if current_user.id == user_id:
+        return user_id
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Not authorized to view these orders",
+    )
