@@ -34,37 +34,49 @@ async def test_on_startup(
     """
     Tests that on_startup correctly calls all initialization functions.
     """
-    # 1. Mock all external dependencies that on_startup calls
+    # --- FIX 1: Force a fake DSN so the 'if settings.GLITCHTIP_DSN:' block runs ---
+    fake_dsn = "https://publickey@sentry.example.com/1"
+    mocker.patch.object(settings, "GLITCHTIP_DSN", fake_dsn)
+    # ------------------------------------------------------------------------------
+
+    # 1. Mock external dependencies
     mock_sentry_init = mocker.patch.object(sentry_sdk, "init")
+
     mock_db_init = mocker.patch.object(
         DatabaseLifecycle, "initialize", new_callable=mocker.AsyncMock
     )
 
-    # Mock aiohttp.ClientSession to control its creation and behavior
     mock_session_instance = mocker.AsyncMock(spec=aiohttp.ClientSession)
     mock_aiohttp_session = mocker.patch(
         "aiohttp.ClientSession", return_value=mock_session_instance
     )
 
+    # Mock Redis infrastructure to prevent connection errors
+    mock_redis_from_url = mocker.patch("app.lifecycle.app_lifecycle.Redis.from_url")
+    mock_limiter_init = mocker.patch(
+        "app.lifecycle.app_lifecycle.FastAPILimiter.init", new_callable=mocker.AsyncMock
+    )
+
     mock_log_info = mocker.spy(log, "info")
 
-    # 2. Run the method we are testing
+    # 2. Run the method
     await lifecycle_manager.on_startup()
 
-    # 3. Assert that all dependencies were called as expected
-    mock_sentry_init.assert_called_once_with(
-        str(settings.GLITCHTIP_DSN), traces_sample_rate=1.0
-    )
+    # 3. Assertions
+    # --- FIX 2: Check against the fake DSN ---
+    mock_sentry_init.assert_called_once_with(fake_dsn, traces_sample_rate=1.0)
+    # -----------------------------------------
+
     mock_db_init.assert_awaited_once()
     mock_aiohttp_session.assert_called_once()
+    mock_redis_from_url.assert_called_once()
+    mock_limiter_init.assert_awaited_once()
 
-    # Assert that the created session was stored in the app's state
     assert mock_app.state.aiohttp_session is mock_session_instance
 
-    # Assert that logging happened
-    assert mock_log_info.call_count >= 3
     mock_log_info.assert_any_call("Starting {} app...", settings.APP_NAME)
     mock_log_info.assert_any_call("Aiohttp session initialized.")
+    mock_log_info.assert_any_call("Redis and Rate Limiter initialized.")
     mock_log_info.assert_any_call(
         "{} startup complete. Ready to serve requests.", settings.APP_NAME
     )

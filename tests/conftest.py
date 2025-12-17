@@ -9,19 +9,23 @@ from fastapi import FastAPI
 from httpx import ASGITransport
 from httpx import AsyncClient
 import pytest
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine
 from testcontainers.postgres import PostgresContainer
+from testcontainers.redis import RedisContainer
 
 from app.auth.auth import get_password_hash
 from app.core.config import settings
+from app.core.dependencies import get_db
+from app.core.dependencies import get_redis_client
 from app.db import Base
 from app.db.db_manager import DatabaseManager
-from app.db.db_manager import get_db
 from app.main import app as main_app
-from app.task.models import Task
+from app.orders.models import Order
+from app.orders.models import OrderStatus
 from app.user.models import User
 
 
@@ -41,7 +45,7 @@ async def async_client(app_with_db: FastAPI) -> AsyncGenerator[AsyncClient, None
         yield client
 
 
-# --- Database Fixtures (Function-Scoped for Maximum Stability) ---
+# ---  Infrastructure Fixtures ---
 
 
 @pytest.fixture(scope="session")
@@ -59,6 +63,52 @@ def postgres_container(
     """Fresh Postgres container per test for full isolation."""
     with PostgresContainer("postgres:15") as postgres:
         yield postgres
+
+
+@pytest.fixture(scope="session")
+def redis_container() -> Generator[RedisContainer, None, None]:
+    """
+    Spins up a Redis container for the duration of the test session.
+    """
+    with RedisContainer("redis:7-alpine") as redis:
+        yield redis
+
+
+@pytest.fixture(scope="function")
+async def redis_client(redis_container: RedisContainer) -> AsyncGenerator[Redis, None]:
+    """
+    Connects to the Test Redis Container using the ASYNC client.
+    """
+    # 1. Get container details
+    host = redis_container.get_container_host_ip()
+    port = redis_container.get_exposed_port(6379)
+
+    # 2. Patch settings
+    original_host = settings.REDIS_HOST
+    original_port = settings.REDIS_PORT
+    settings.REDIS_HOST = host
+    settings.REDIS_PORT = int(port)
+
+    # 3. Create ASYNC Client
+    client = Redis.from_url(settings.REDIS_URL, decode_responses=True, encoding="utf-8")
+
+    try:
+        yield client
+        await client.flushdb()
+    finally:
+        # 4. Safe Close
+        # Redis-py 5.x prefers aclose(), 4.x used close()
+        if hasattr(client, "aclose"):
+            await client.aclose()
+        else:
+            await client.close()
+
+        # 5. Restore settings
+        settings.REDIS_HOST = original_host
+        settings.REDIS_PORT = original_port
+
+
+# --- Database Engine & Session ---
 
 
 @pytest.fixture(scope="function")
@@ -135,12 +185,26 @@ def override_get_db(
 
 
 @pytest.fixture
+def override_get_redis(
+    redis_client: Redis,
+) -> Callable[[], AsyncGenerator[Redis, None]]:
+    """Overrides the `get_redis_client` dependency to use our clean fixture."""
+
+    async def _override_get_redis() -> AsyncGenerator[Redis, None]:
+        yield redis_client
+
+    return _override_get_redis
+
+
+@pytest.fixture
 def app_with_db(
     app: FastAPI,
     override_get_db: Callable[[], AsyncGenerator[AsyncSession, None]],
+    override_get_redis: Callable[[], AsyncGenerator[Redis, None]],
 ) -> Generator[FastAPI, None, None]:
     """FastAPI app with DB dependency overridden."""
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_redis_client] = override_get_redis
     yield app
     app.dependency_overrides.clear()
 
@@ -152,14 +216,12 @@ def reset_db_manager_singleton():
     the DatabaseManager singleton is reset to a clean state before each test,
     preventing state leakage.
     """
-    # Use setattr to modify the "private" instance variable
     DatabaseManager._instance = None
     yield
-    # Teardown (optional, but good practice)
     DatabaseManager._instance = None
 
 
-# --- Test-specific Fixtures ---
+# --- User Fixtures ---
 
 
 @pytest.fixture
@@ -176,6 +238,20 @@ async def test_user(db_session: AsyncSession) -> tuple[str, str]:
     await db_session.commit()
     await db_session.refresh(user)
     return user.username, settings.TEST_PASSWORD
+
+
+@pytest.fixture
+async def auth_token(async_client: AsyncClient, test_user: tuple[str, str]) -> str:
+    """Logs in as the test user and returns a Bearer token."""
+    username, password = test_user
+    resp = await async_client.post(
+        "/users/token",
+        data={"username": username, "password": password},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    resp.raise_for_status()
+    json_data = cast(dict[str, Any], resp.json())
+    return cast(str, json_data["access_token"])
 
 
 @pytest.fixture
@@ -247,20 +323,6 @@ async def regular_users(db_session: AsyncSession) -> list[User]:
     for u in users_data:
         await db_session.refresh(u)
     return users_data
-
-
-@pytest.fixture
-async def auth_token(async_client: AsyncClient, test_user: tuple[str, str]) -> str:
-    """Logs in as the test user and returns a Bearer token."""
-    username, password = test_user
-    resp = await async_client.post(
-        "/users/token",
-        data={"username": username, "password": password},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    resp.raise_for_status()
-    json_data = cast(dict[str, Any], resp.json())
-    return cast(str, json_data["access_token"])
 
 
 @pytest.fixture
@@ -337,14 +399,21 @@ async def user_b_token(async_client: AsyncClient, user_b: User) -> str:
     return access_token
 
 
-# --- Task Fixture ---
+# --- Order Fixtures ---
 
 
 @pytest.fixture
-async def user_a_task(db_session: AsyncSession, user_a: User) -> Task:
-    """Creates a task owned by User A directly in the database."""
-    task = Task(title="User A's Task", owner_id=user_a.id)
-    db_session.add(task)
+async def user_a_order(db_session: AsyncSession, user_a: User) -> Order:
+    """Creates an Order owned by User A directly in the database."""
+    order = Order(
+        user_id=user_a.id,
+        items=[
+            {"product_id": 99, "name": "Fixture Item", "quantity": 1, "price": 100.0}
+        ],
+        total_price=100.0,
+        status=OrderStatus.PENDING,
+    )
+    db_session.add(order)
     await db_session.commit()
-    await db_session.refresh(task)
-    return task
+    await db_session.refresh(order)
+    return order

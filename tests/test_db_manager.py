@@ -57,7 +57,6 @@ class TestDatabaseManagerSingleton:
 
 
 class TestDatabaseManagerLifecycle:
-
     async def test_initialize_success(
         self,
         db_manager_instance: DatabaseManager,

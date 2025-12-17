@@ -54,6 +54,7 @@ async def table_exists(engine: AsyncEngine, table_name: str) -> bool:
         return await conn.run_sync(check_table)
 
 
+@pytest.mark.asyncio
 async def test_migrations_upgrade_downgrade(
     alembic_config: Config, migration_engine: AsyncEngine
 ) -> None:
@@ -66,17 +67,17 @@ async def test_migrations_upgrade_downgrade(
 
     # Check that both tables now exist in the SAME database
     assert await table_exists(migration_engine, "users")
-    assert await table_exists(migration_engine, "tasks")
+    assert await table_exists(migration_engine, "orders")  # UPDATED
 
     # --- Downgrade back to base ---
     await loop.run_in_executor(None, command.downgrade, alembic_config, "base")
 
     # Now both should be gone
     assert not await table_exists(migration_engine, "users")
-    assert not await table_exists(migration_engine, "tasks")
+    assert not await table_exists(migration_engine, "orders")  # UPDATED
 
 
-# This test must also be marked as async
+@pytest.mark.asyncio
 async def test_each_migration_step(
     alembic_config: Config, migration_engine: AsyncEngine
 ) -> None:
@@ -86,11 +87,15 @@ async def test_each_migration_step(
     # --- Go to base (start clean) ---
     await loop.run_in_executor(None, command.downgrade, alembic_config, "base")
 
-    # --- Upgrade to the first migration ---
-    await loop.run_in_executor(None, command.upgrade, alembic_config, "54000a27abfd")
-    assert await table_exists(migration_engine, "users")
-    assert not await table_exists(migration_engine, "tasks")
+    # --- Upgrade to the first migration (Users) ---
+    # UPDATED REVISION ID for "add users table"
+    await loop.run_in_executor(None, command.upgrade, alembic_config, "c39431c5f796")
 
-    # --- Upgrade to the second migration ---
-    await loop.run_in_executor(None, command.upgrade, alembic_config, "31659d68e660")
-    assert await table_exists(migration_engine, "tasks")
+    assert await table_exists(migration_engine, "users")
+    assert not await table_exists(migration_engine, "orders")
+
+    # --- Upgrade to the second migration (Orders) ---
+    # UPDATED REVISION ID for "add orders table"
+    await loop.run_in_executor(None, command.upgrade, alembic_config, "6128031b2f06")
+
+    assert await table_exists(migration_engine, "orders")
