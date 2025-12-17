@@ -224,7 +224,7 @@
 
 ```mermaid
 flowchart LR
-    A[Client Request] -->|POST /orders/| B[FastAPI Orders Router]
+    A[Client Request] -->|"POST /orders/"| B[FastAPI Orders Router]
     B --> C[OrderService.create_order]
     C --> D[PostgreSQL: orders table]
     C --> E[Redis Cache: order_id]
@@ -234,9 +234,9 @@ flowchart LR
     H --> D[Optional DB update]
     H --> E[Invalidate/Update Redis Cache]
     
-    B -->|GET /orders/{order_id}/| E
-    E -->|cache hit?| B
-    E -->|cache miss| D --> B
+    B -->|"GET /orders/{order_id}/"| E
+    E -->|"cache hit?"| B
+    E -->|"cache miss"| D --> B
 ```
 
 ---
