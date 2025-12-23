@@ -194,9 +194,9 @@
 
 ### API Endpoints Overview
 
-- API Root (redirects to docs): http://localhost:8000  
-- Interactive Docs (Swagger UI): http://localhost:8000/docs  
-- Prometheus Metrics: http://localhost:8000/metrics  
+- API Root (redirects to docs): http://localhost:8000
+- Interactive Docs (Swagger UI): http://localhost:8000/docs
+- Prometheus Metrics: http://localhost:8000/metrics
 
 | Endpoint | Method | Description | Authorization | Notes |
 |---|---|---|---|---|
@@ -233,7 +233,7 @@ flowchart LR
     G -->|"process order (time.sleep(2))"| H[Order Processed Log]
     H --> D[Optional DB update]
     H --> E[Invalidate/Update Redis Cache]
-    
+
     B -->|"GET /orders/{order_id}/"| E
     E -->|"cache hit?"| B
     E -->|"cache miss"| D --> B
