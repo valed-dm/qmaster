@@ -1,0 +1,11 @@
+# Files Cursor should ignore
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+.env
+*.log
+node_modules/
+dist/
+build/
+*.egg-info/

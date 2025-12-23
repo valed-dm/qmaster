@@ -1,0 +1,19 @@
+{
+  "rules": [
+    {
+      "name": "fastapi-order-management-service",
+      "description": "FastAPI Order Management Service featuring authentication, message queues, caching, and background task processing with Poetry-based dependency management.",
+      "globs": ["*.py", "pyproject.toml"],
+      "commands": [
+        "Target Python 3.12 or newer",
+        "Enforce PEP 8 style guidelines",
+        "Require type hints throughout the codebase",
+        "Manage dependencies using Poetry",
+        "Implement authentication for protected endpoints",
+        "Integrate message queues (e.g., RabbitMQ or Redis) for asynchronous communication",
+        "Utilize caching for performance (e.g., Redis)",
+        "Support background task processing"
+      ]
+    }
+  ]
+}
