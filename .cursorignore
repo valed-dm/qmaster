@@ -1,11 +1,283 @@
-# Files Cursor should ignore
+# Cursor AI Ignore Patterns
+# Files and directories that Cursor should not index for AI context
+
+# ============================================================================
+# Python - Bytecode and Compiled Files
+# ============================================================================
 __pycache__/
-*.pyc
-.pytest_cache/
-.coverage
-.env
-*.log
-node_modules/
-dist/
+*.py[cod]
+*$py.class
+*.so
+*.dylib
+*.dll
+*.pyd
+
+# ============================================================================
+# Python - Virtual Environments
+# ============================================================================
+.venv/
+venv/
+ENV/
+env/
+.conda/
+
+# ============================================================================
+# Python - Distribution and Packaging
+# ============================================================================
 build/
+dist/
 *.egg-info/
+.eggs/
+eggs/
+*.egg
+wheels/
+downloads/
+sdist/
+var/
+lib/
+lib64/
+parts/
+develop-eggs/
+
+# ============================================================================
+# Python - Testing and Coverage
+# ============================================================================
+.pytest_cache/
+.tox/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+htmlcov/
+.hypothesis/
+.pytest_cache/
+.nox/
+nosetests.xml
+test-results/
+*.pytest_cache
+
+# ============================================================================
+# Python - Type Checking and Linting
+# ============================================================================
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+.ruff_cache/
+
+# ============================================================================
+# Python - Poetry
+# ============================================================================
+.poetry/
+.poetry-cache/
+
+# ============================================================================
+# Environment and Secrets
+# ============================================================================
+.env
+.env.*
+*.env
+!.env.example
+!.env.template
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+secrets/
+.secrets/
+
+# ============================================================================
+# Logs and Runtime Files
+# ============================================================================
+*.log
+logs/
+*.log.*
+*.out
+*.err
+*.pid
+*.seed
+app/logs/
+*.log.*.gz
+
+# ============================================================================
+# Database Files
+# ============================================================================
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+dump.rdb
+*.dump
+
+# ============================================================================
+# Docker and Container Files
+# ============================================================================
+.docker/
+docker-compose.override.yml
+docker-data/
+
+# ============================================================================
+# IDE and Editor Files
+# ============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-*
+.vscode-test/
+.history/
+*.code-workspace
+.ropeproject/
+
+# JetBrains IDEs
+.idea_modules/
+*.iml
+*.iws
+out/
+
+# ============================================================================
+# OS-Specific Files
+# ============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.DocumentRevisions-V100
+.fseventsd
+.TemporaryItems
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+Icon?
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ============================================================================
+# Documentation Build Artifacts
+# ============================================================================
+docs/_build/
+docs/_static/
+docs/_templates/
+site/
+.mkdocs/
+
+# ============================================================================
+# Generated and Temporary Files
+# ============================================================================
+*.tmp
+*.temp
+*.bak
+*.backup
+*.swp
+*.cache
+.cache/
+tmp/
+temp/
+*.orig
+
+# ============================================================================
+# Node.js (if any frontend tools are used)
+# ============================================================================
+node_modules/
+.npm/
+.yarn/
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ============================================================================
+# CI/CD Artifacts
+# ============================================================================
+.github/workflows/.cache/
+artifacts/
+ci-output/
+
+# ============================================================================
+# Large Binary and Media Files
+# ============================================================================
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.ico
+*.svg
+*.pdf
+*.mp4
+*.avi
+*.mov
+*.wmv
+
+# ============================================================================
+# Project-Specific
+# ============================================================================
+# Migration versions (keep structure, but ignore large generated migration files if needed)
+# migrations/versions/*.pyc
+
+# Alembic
+alembic.ini.bak
+
+# Coverage reports (already covered but explicit)
+htmlcov/
+
+# ============================================================================
+# Lock Files (optional - sometimes you want to ignore large lock files)
+# ============================================================================
+# Uncomment if poetry.lock becomes too large for context
+# poetry.lock
+
+# ============================================================================
+# Backup and Archive Files
+# ============================================================================
+*.old
+*.save
+*.sav
+*.bak
+*.backup
+*~
+.#*
+
+# ============================================================================
+# Miscellaneous
+# ============================================================================
+tags
+TAGS
+ctags
+cscope.*
+Session.vim
+.netrwhist
+*.manifest
+*.spec
+*.pyz
+*.pyo
