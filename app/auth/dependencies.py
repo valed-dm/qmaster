@@ -45,6 +45,19 @@ def _user_has_any_required_scope(
     return bool(required_scopes.intersection(user_scopes))
 
 
+def _parse_user_scopes(scope_string: str) -> set[str]:
+    """
+    Parse a space-separated scope string into a set of scope names.
+
+    Args:
+        scope_string: Space-separated string of scopes (e.g., "user admin").
+
+    Returns:
+        Set of scope names with empty strings filtered out.
+    """
+    return set(scope_string.split()) if scope_string else set()
+
+
 # --- Main Application Logic ---
 # Select the desired authorization strategy for the application.
 # To change the model, simply change which function is imported here.
@@ -147,7 +160,8 @@ def validate_user_access(
 
     Returns the validated user_id.
     """
-    if "admin" in current_user.scopes:
+    user_scopes = _parse_user_scopes(current_user.scopes)
+    if "admin" in user_scopes:
         return user_id
 
     if current_user.id == user_id:
