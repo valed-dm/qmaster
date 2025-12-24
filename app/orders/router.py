@@ -6,6 +6,7 @@ from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
 from fastapi import Security
+from fastapi import status
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,19 +54,26 @@ async def get_order(
 ) -> OrderRead:
     """
     Retrieves a specific order by its ID.
-    Enforces ownership: Users can only see their own orders.
+    Enforces ownership: Users can only see their own orders, admins can see any order.
     """
     order_service = OrderService(db, redis)
     order = await order_service.get_order(order_id)
 
     if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found"
+        )
 
-    is_admin = "admin" in current_user.scopes
+    user_scopes = set(current_user.scopes.split())
+    is_admin = "admin" in user_scopes
     is_owner = order.user_id == current_user.id
 
     if not is_admin and not is_owner:
-        raise HTTPException(status_code=403, detail="Not authorized to view this order")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view this order"
+        )
 
     return order
 
@@ -80,14 +88,27 @@ async def update_order_status(
 ) -> OrderRead:
     """
     Updates the status of an existing order (e.g., PENDING -> PAID).
+    Enforces authorization: Only admins can update order status.
     """
     order_service = OrderService(db, redis)
 
+    user_scopes = set(current_user.scopes.split())
+    is_admin = "admin" in user_scopes
+
+    if not is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to update order status. Admin access required."
+        )
+
+    order = await order_service.get_order(order_id)
+    if not order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found"
+        )
+
     updated_order = await order_service.update_order_status(order_id, order_in.status)
-
-    if not updated_order:
-        raise HTTPException(status_code=404, detail="Order not found")
-
     return updated_order
 
 
