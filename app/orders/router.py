@@ -79,8 +79,7 @@ async def update_order_status(
 
     if not updated_order:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Order not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"
         )
 
     return updated_order

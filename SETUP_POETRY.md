@@ -102,4 +102,3 @@ poetry env info  # Should show the virtual environment path
    ```bash
    source .venv/bin/activate
    ```
-

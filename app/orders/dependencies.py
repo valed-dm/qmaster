@@ -71,4 +71,3 @@ async def validate_order_access(
         )
 
     return order
-
