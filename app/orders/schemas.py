@@ -25,7 +25,7 @@ class OrderBase(BaseModel):
 class OrderCreate(OrderBase):
     @field_validator("items")
     @classmethod
-    def validate_items(cls, v):
+    def validate_items(cls, v: List[OrderItem]) -> List[OrderItem]:
         if not v:
             raise ValueError("Order must contain at least one item")
         return v
