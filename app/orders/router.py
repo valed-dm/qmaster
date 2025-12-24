@@ -11,9 +11,11 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_active_user
+from app.auth.dependencies import require_admin
 from app.auth.dependencies import validate_user_access
 from app.core.dependencies import get_db
 from app.core.dependencies import get_redis_client
+from app.orders.dependencies import validate_order_access
 from app.orders.schemas import OrderCreate
 from app.orders.schemas import OrderRead
 from app.orders.schemas import OrderUpdateStatus
@@ -29,6 +31,8 @@ CurrentUserDep = Annotated[
     DBUser, Security(get_current_active_user, scopes=["user", "admin", "staff"])
 ]
 AuthorizedUserID = Annotated[int, Depends(validate_user_access)]
+AuthorizedOrder = Annotated[OrderRead, Depends(validate_order_access)]
+AdminUser = Annotated[DBUser, Depends(require_admin)]
 
 
 @router.post("/orders/", response_model=OrderRead)
@@ -47,34 +51,13 @@ async def create_order(
 
 @router.get("/orders/{order_id}/", response_model=OrderRead)
 async def get_order(
-    order_id: uuid.UUID,
-    db: SessionDep,
-    redis: RedisDep,
-    current_user: CurrentUserDep,
+    order: AuthorizedOrder,
 ) -> OrderRead:
     """
     Retrieves a specific order by its ID.
     Enforces ownership: Users can only see their own orders, admins can see any order.
+    Authorization is handled by the validate_order_access dependency.
     """
-    order_service = OrderService(db, redis)
-    order = await order_service.get_order(order_id)
-
-    if not order:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Order not found"
-        )
-
-    user_scopes = set(current_user.scopes.split())
-    is_admin = "admin" in user_scopes
-    is_owner = order.user_id == current_user.id
-
-    if not is_admin and not is_owner:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to view this order"
-        )
-
     return order
 
 
@@ -84,31 +67,22 @@ async def update_order_status(
     order_in: OrderUpdateStatus,
     db: SessionDep,
     redis: RedisDep,
-    current_user: CurrentUserDep,
+    _: AdminUser,
 ) -> OrderRead:
     """
     Updates the status of an existing order (e.g., PENDING -> PAID).
     Enforces authorization: Only admins can update order status.
+    Authorization is handled by the require_admin dependency.
     """
     order_service = OrderService(db, redis)
+    updated_order = await order_service.update_order_status(order_id, order_in.status)
 
-    user_scopes = set(current_user.scopes.split())
-    is_admin = "admin" in user_scopes
-
-    if not is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to update order status. Admin access required."
-        )
-
-    order = await order_service.get_order(order_id)
-    if not order:
+    if not updated_order:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Order not found"
         )
 
-    updated_order = await order_service.update_order_status(order_id, order_in.status)
     return updated_order
 
 

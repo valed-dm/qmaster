@@ -149,6 +149,26 @@ def get_current_active_user(
     return current_user
 
 
+def require_admin(
+    current_user: Annotated[User, Depends(get_current_active_user)],
+) -> User:
+    """
+    Dependency that ensures the requesting user is an admin.
+
+    Returns the authenticated user if they are an admin.
+
+    Raises:
+        HTTPException (403): If the user is not an admin.
+    """
+    user_scopes = _parse_user_scopes(current_user.scopes)
+    if "admin" not in user_scopes:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return current_user
+
+
 def validate_user_access(
     user_id: int,
     current_user: Annotated[User, Depends(get_current_active_user)],
